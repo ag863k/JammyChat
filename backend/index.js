@@ -15,7 +15,7 @@ require('dotenv').config();
 // App Setup
 const app = express();
 const server = http.createServer(app);
-const PORT = 4000; 
+const PORT = process.env.PORT || 4000; 
 
 // Middleware
 const allowedOrigins = [process.env.CLIENT_URL || 'http://localhost:3000'];
