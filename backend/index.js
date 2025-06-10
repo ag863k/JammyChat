@@ -18,7 +18,11 @@ const server = http.createServer(app);
 const PORT = process.env.PORT || 4000; 
 
 // Middleware
-const allowedOrigins = [process.env.CLIENT_URL || 'http://localhost:3000'];
+const allowedOrigins = [
+  process.env.CLIENT_URL || 'http://localhost:3000',
+  'https://jammychat.netlify.app', // Add your Netlify domain
+  'http://localhost:3000'
+];
 app.use(cors({ origin: allowedOrigins, credentials: true }));
 app.use(express.json()); // For parsing application/json
 
@@ -31,8 +35,9 @@ mongoose.connect(MONGODB_URI, { useNewUrlParser: true, useUnifiedTopology: true 
 // Socket.IO Setup
 const io = new Server(server, {
     cors: {
-        origin: "http://localhost:3000", 
-        methods: ["GET", "POST"]
+        origin: allowedOrigins,
+        methods: ["GET", "POST"],
+        credentials: true
     }
 });
 

@@ -3,7 +3,6 @@ import io from "socket.io-client";
 import "./App.css";
 
 const ENDPOINT = process.env.REACT_APP_BACKEND_URL || "http://localhost:4000";
-let socket;
 
 function formatTime(ts) {
   if (!ts) return "";
@@ -34,6 +33,7 @@ function App() {
   const [editInput, setEditInput] = useState("");
   const messagesEndRef = useRef(null);
   const typingTimeout = useRef(null);
+  const socket = useRef(null);
   const isAdmin = username === 'admin';
 
   // Auth
@@ -73,37 +73,43 @@ function App() {
   // Socket and messages
   useEffect(() => {
     if (!token || !username || !room) return;
-    socket = io(ENDPOINT, { transports: ["websocket"], auth: { token } });
-    socket.on("connect", () => {
+    if (socket.current) {
+      socket.current.disconnect();
+    }
+    socket.current = io(ENDPOINT, { transports: ["websocket"], auth: { token } });
+    socket.current.on("connect", () => {
       setConnected(true);
-      socket.emit("join_room", { room, username });
+      socket.current.emit("join_room", { room, username });
     });
-    socket.on("disconnect", () => setConnected(false));
-    socket.on("receive_message", (msg) => {
+    socket.current.on("disconnect", () => setConnected(false));
+    socket.current.on("receive_message", (msg) => {
       setMessages((prev) => [...prev, msg]);
     });
-    socket.on("error_message", (err) => setError(err.error));
-    socket.on("typing", (data) => {
+    socket.current.on("error_message", (err) => setError(err.error));
+    socket.current.on("typing", (data) => {
       setTyping(data.username !== username ? `${data.username.slice(0, 8)}... is typing...` : "");
       if (typingTimeout.current) clearTimeout(typingTimeout.current);
       typingTimeout.current = setTimeout(() => setTyping(""), 2000);
     });
-    socket.on("user_joined", ({ username }) => {
+    socket.current.on("user_joined", ({ username }) => {
       setNotifications((prev) => [...prev, `${username.slice(0,8)}... joined the chat`]);
       setTimeout(() => setNotifications((prev) => prev.slice(1)), 3000);
     });
-    socket.on("user_left", ({ username }) => {
+    socket.current.on("user_left", ({ username }) => {
       setNotifications((prev) => [...prev, `${username.slice(0,8)}... left the chat`]);
       setTimeout(() => setNotifications((prev) => prev.slice(1)), 3000);
     });
-    socket.on("message_edited", ({ id, content }) => {
+    socket.current.on("message_edited", ({ id, content }) => {
       setMessages((prev) => prev.map(m => m._id === id ? { ...m, content } : m));
     });
-    socket.on("message_deleted", ({ id }) => {
+    socket.current.on("message_deleted", ({ id }) => {
       setMessages((prev) => prev.filter(m => m._id !== id));
     });
     return () => {
-      socket.disconnect();
+      if (socket.current) {
+        socket.current.off();
+        socket.current.disconnect();
+      }
     };
   }, [token, username, room]);
 
@@ -143,13 +149,15 @@ function App() {
       setFile(null);
     }
     if (!input.trim() && !fileUrl) return;
-    socket.emit("send_message", { username, content: input, room, fileUrl });
+    socket.current.emit("send_message", { username, content: input, room, fileUrl });
     setInput("");
   };
 
   const handleInput = (e) => {
     setInput(e.target.value);
-    socket.emit("typing", { username });
+    if (socket.current) {
+      socket.current.emit("typing", { username });
+    }
   };
 
   // Message edit
@@ -159,12 +167,16 @@ function App() {
   };
   const saveEdit = () => {
     if (!editInput.trim()) return;
-    socket.emit('edit_message', { id: editingMsgId, content: editInput, room });
+    if (socket.current) {
+      socket.current.emit('edit_message', { id: editingMsgId, content: editInput, room });
+    }
     setEditingMsgId(null);
     setEditInput("");
   };
   const deleteMsg = (id) => {
-    socket.emit('delete_message', { id, room });
+    if (socket.current) {
+      socket.current.emit('delete_message', { id, room });
+    }
   };
 
   if (!token) {
@@ -224,7 +236,9 @@ function App() {
                   </div>
                 ) : (
                   <>
-                    {msg.fileUrl && <a href={ENDPOINT + msg.fileUrl} target="_blank" rel="noopener noreferrer" style={{ color: '#ff5f6d', textDecoration: 'underline' }}>File</a>}
+                    {msg.fileUrl && (
+                      <a href={msg.fileUrl.startsWith('http') ? msg.fileUrl : ENDPOINT + msg.fileUrl} target="_blank" rel="noopener noreferrer" style={{ color: '#ff5f6d', textDecoration: 'underline' }}>File</a>
+                    )}
                     {msg.content && <div className="bubble">{msg.content}</div>}
                   </>
                 )}
