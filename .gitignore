@@ -2,26 +2,3 @@ node_modules/
 build/
 dist/
 .env
-.env.*
-
-# Documentation and deployment files (should not be in repo)
-DEPLOYMENT.md
-FIXES_SUMMARY.md
-deployment-guide.md
-fix-summary.md
-*.deployment.md
-*.fixes.md
-
-# Logs
-*.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-
-# OS files
-.DS_Store
-Thumbs.db
-
-# IDE
-.vscode/
-.idea/

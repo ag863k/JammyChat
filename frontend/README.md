@@ -68,17 +68,3 @@ This section has moved here: [https://facebook.github.io/create-react-app/docs/d
 ### `npm run build` fails to minify
 
 This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
-
-# JammyChat Frontend
-
-## Security
-- Never commit `.env` or secrets to GitHub. Use Netlify environment variables for any API keys.
-- The frontend does not store secrets in code.
-
-## Deployment
-- Deploy to Netlify. Set `REACT_APP_BACKEND_URL` as an environment variable if backend is not on localhost.
-
-## Features
-- Modern chat UI with wallet-style addresses
-- Real-time messaging via Socket.IO
-- Message timestamps, connection status, error handling
