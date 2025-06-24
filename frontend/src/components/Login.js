@@ -21,8 +21,23 @@ const Login = ({ onLogin, onToggle }) => {
     setLoading(true);
     setError('');
 
+    if (!formData.email.trim() || !formData.password) {
+      setError('Email and password are required');
+      setLoading(false);
+      return;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(formData.email)) {
+      setError('Please enter a valid email address');
+      setLoading(false);
+      return;
+    }
+
     try {
-      const apiUrl = process.env.REACT_APP_API_URL || '/api';
+      const apiUrl = process.env.REACT_APP_API_URL || (
+        process.env.NODE_ENV === 'production' ? '/api' : 'http://localhost:4000/api'
+      );
       const response = await fetch(`${apiUrl}/auth/login`, {
         method: 'POST',
         headers: {

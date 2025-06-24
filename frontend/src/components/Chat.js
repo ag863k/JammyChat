@@ -42,7 +42,9 @@ const Chat = ({ user, onLogout }) => {
 
   const loadMessages = async () => {
     try {
-      const apiUrl = process.env.REACT_APP_API_URL || '/api';
+      const apiUrl = process.env.REACT_APP_API_URL || (
+        process.env.NODE_ENV === 'production' ? '/api' : 'http://localhost:4000/api'
+      );
       const response = await fetch(`${apiUrl}/messages`);
       if (response.ok) {
         const data = await response.json();

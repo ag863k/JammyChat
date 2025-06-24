@@ -10,15 +10,51 @@ function App() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Check if user is already logged in
     const token = localStorage.getItem('token');
     const userData = localStorage.getItem('user');
     
     if (token && userData) {
-      setUser(JSON.parse(userData));
+      try {
+        const user = JSON.parse(userData);
+        if (user && user.id && user.username && user.email) {
+          validateToken(token, user);
+        } else {
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
+        }
+      } catch (error) {
+        console.error('Error parsing user data:', error);
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+      }
     }
     setLoading(false);
   }, []);
+
+  const validateToken = async (token, userData) => {
+    try {
+      const apiUrl = process.env.REACT_APP_API_URL || (
+        process.env.NODE_ENV === 'production' ? '/api' : 'http://localhost:4000/api'
+      );
+      const response = await fetch(`${apiUrl}/auth/me`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (response.ok) {
+        const currentUser = await response.json();
+        setUser(currentUser);
+      } else {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+      }
+    } catch (error) {
+      console.error('Token validation error:', error);
+      setUser(userData);
+    }
+  };
 
   const handleLogin = (userData, token) => {
     localStorage.setItem('token', token);

@@ -23,6 +23,32 @@ const Register = ({ onLogin, onToggle }) => {
     setLoading(true);
     setError('');
 
+    if (!formData.username.trim() || !formData.email.trim() || !formData.password) {
+      setError('All fields are required');
+      setLoading(false);
+      return;
+    }
+
+    if (formData.username.length < 3 || formData.username.length > 20) {
+      setError('Username must be between 3 and 20 characters');
+      setLoading(false);
+      return;
+    }
+
+    const usernameRegex = /^[a-zA-Z0-9_]+$/;
+    if (!usernameRegex.test(formData.username)) {
+      setError('Username can only contain letters, numbers, and underscores');
+      setLoading(false);
+      return;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(formData.email)) {
+      setError('Please enter a valid email address');
+      setLoading(false);
+      return;
+    }
+
     if (formData.password !== formData.confirmPassword) {
       setError('Passwords do not match');
       setLoading(false);
@@ -36,7 +62,9 @@ const Register = ({ onLogin, onToggle }) => {
     }
 
     try {
-      const apiUrl = process.env.REACT_APP_API_URL || '/api';
+      const apiUrl = process.env.REACT_APP_API_URL || (
+        process.env.NODE_ENV === 'production' ? '/api' : 'http://localhost:4000/api'
+      );
       const response = await fetch(`${apiUrl}/auth/register`, {
         method: 'POST',
         headers: {
