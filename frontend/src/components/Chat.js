@@ -13,26 +13,49 @@ const Chat = ({ user, onLogout }) => {
   };
 
   useEffect(() => {
-    // Load chat history
+    if (!user?.id || !user?.username) return;
+
     loadMessages();
     
-    // Initialize socket connection
-    const backendUrl = process.env.REACT_APP_BACKEND_URL || window.location.protocol + '//' + window.location.hostname + ':4000';
-    const newSocket = io(backendUrl);
+    const backendUrl = process.env.REACT_APP_BACKEND_URL || 
+      (process.env.NODE_ENV === 'production' 
+        ? window.location.origin 
+        : `${window.location.protocol}//${window.location.hostname}:4000`);
+    
+    const newSocket = io(backendUrl, {
+      transports: ['websocket', 'polling'],
+      timeout: 20000,
+      forceNew: true
+    });
+    
     setSocket(newSocket);
 
-    newSocket.emit('user_connected', { username: user.username, userId: user.id });
+    newSocket.on('connect', () => {
+      console.log('Connected to server');
+      newSocket.emit('user_connected', { 
+        username: user.username, 
+        userId: user.id 
+      });
+    });
+
+    newSocket.on('connect_error', (error) => {
+      console.error('Connection error:', error);
+    });
 
     newSocket.on('receive_message', (message) => {
-      setMessages(prev => [...prev, message]);
+      if (message && message.content && message.username) {
+        setMessages(prev => [...prev, message]);
+      }
     });
 
     newSocket.on('users_online', (users) => {
-      setOnlineUsers(users);
+      if (Array.isArray(users)) {
+        setOnlineUsers(users);
+      }
     });
 
     return () => {
-      newSocket.close();
+      newSocket.disconnect();
     };
   }, [user]);
 
@@ -57,24 +80,47 @@ const Chat = ({ user, onLogout }) => {
 
   const sendMessage = (e) => {
     e.preventDefault();
-    if (newMessage.trim() && socket) {
-      const messageData = {
-        username: user.username,
-        content: newMessage.trim(),
-        userId: user.id,
-        timestamp: new Date()
-      };
-      
-      socket.emit('send_message', messageData);
-      setNewMessage('');
+    
+    if (!newMessage.trim() || !socket || !socket.connected) {
+      return;
     }
+
+    const messageContent = newMessage.trim();
+    if (messageContent.length > 1000) {
+      alert('Message is too long. Maximum 1000 characters allowed.');
+      return;
+    }
+
+    const messageData = {
+      username: user.username,
+      content: messageContent,
+      userId: user.id,
+      timestamp: new Date().toISOString()
+    };
+    
+    socket.emit('send_message', messageData);
+    setNewMessage('');
   };
 
   const formatTime = (timestamp) => {
-    return new Date(timestamp).toLocaleTimeString([], { 
-      hour: '2-digit', 
-      minute: '2-digit' 
-    });
+    try {
+      const date = new Date(timestamp);
+      if (isNaN(date.getTime())) {
+        return new Date().toLocaleTimeString([], { 
+          hour: '2-digit', 
+          minute: '2-digit' 
+        });
+      }
+      return date.toLocaleTimeString([], { 
+        hour: '2-digit', 
+        minute: '2-digit' 
+      });
+    } catch (error) {
+      return new Date().toLocaleTimeString([], { 
+        hour: '2-digit', 
+        minute: '2-digit' 
+      });
+    }
   };
 
   return (
@@ -123,30 +169,35 @@ const Chat = ({ user, onLogout }) => {
           </h1>
         </div>
 
-        {/* Messages */}
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
-          {messages.map((message, index) => (
-            <div
-              key={index}
-              className={`flex ${message.username === user.username ? 'justify-end' : 'justify-start'}`}
-            >
-              <div
-                className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
-                  message.username === user.username
-                    ? 'bg-gradient-to-r from-orange-600 to-pink-600 text-white'
-                    : 'bg-white/10 text-white border border-white/20'
-                }`}
-              >
-                {message.username !== user.username && (
-                  <p className="text-xs text-orange-300 mb-1">{message.username}</p>
-                )}
-                <p className="break-words">{message.content}</p>
-                <p className="text-xs opacity-70 mt-1">
-                  {formatTime(message.timestamp)}
-                </p>
-              </div>
+          {messages.length === 0 ? (
+            <div className="text-center text-white/60 py-8">
+              <p>No messages yet. Start the conversation!</p>
             </div>
-          ))}
+          ) : (
+            messages.map((message, index) => (
+              <div
+                key={`${message.userId}-${message.timestamp}-${index}`}
+                className={`flex ${message.username === user.username ? 'justify-end' : 'justify-start'}`}
+              >
+                <div
+                  className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
+                    message.username === user.username
+                      ? 'bg-gradient-to-r from-orange-600 to-pink-600 text-white'
+                      : 'bg-white/10 text-white border border-white/20'
+                  }`}
+                >
+                  {message.username !== user.username && (
+                    <p className="text-xs text-orange-300 mb-1">{message.username}</p>
+                  )}
+                  <p className="break-words whitespace-pre-wrap">{message.content}</p>
+                  <p className="text-xs opacity-70 mt-1">
+                    {formatTime(message.timestamp)}
+                  </p>
+                </div>
+              </div>
+            ))
+          )}
           <div ref={messagesEndRef} />
         </div>
 
@@ -157,12 +208,19 @@ const Chat = ({ user, onLogout }) => {
               type="text"
               value={newMessage}
               onChange={(e) => setNewMessage(e.target.value)}
+              onKeyPress={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  sendMessage(e);
+                }
+              }}
               placeholder="Type a message..."
+              maxLength={1000}
               className="flex-1 px-4 py-3 bg-white/10 border border-white/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent text-white placeholder-white/60"
             />
             <button
               type="submit"
-              disabled={!newMessage.trim()}
+              disabled={!newMessage.trim() || !socket?.connected}
               className="bg-gradient-to-r from-orange-600 to-pink-600 hover:from-orange-700 hover:to-pink-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold py-3 px-6 rounded-lg transition-all duration-200"
             >
               Send
