@@ -1,35 +1,40 @@
 # JammyChat 🚀
 
-A modern real-time chat application built with React, Node.js, Express, Socket.IO, and MongoDB featuring a beautiful dark orange/pink gradient theme.
+A modern, production-ready real-time chat application built with React, Node.js, Express, Socket.IO, and MongoDB featuring a beautiful dark orange/pink gradient theme.
 
 ![JammyChat](https://img.shields.io/badge/Status-Production%20Ready-success)
 ![React](https://img.shields.io/badge/React-19.1.0-blue)
 ![Node.js](https://img.shields.io/badge/Node.js-Express-green)
 ![Socket.IO](https://img.shields.io/badge/Socket.IO-Real%20Time-orange)
+![MongoDB](https://img.shields.io/badge/MongoDB-Database-brightgreen)
 
 ## ✨ Features
 
-- 🔐 **Secure Authentication** - JWT-based login and registration
+- 🔐 **Secure Authentication** - JWT-based login and registration with bcrypt password hashing
 - 💬 **Real-time Messaging** - Instant message delivery with Socket.IO
-- 👥 **Online Users** - See who's currently online
-- 🎨 **Modern UI** - Beautiful dark orange/pink gradient theme with glassmorphism
-- 📱 **Responsive Design** - Works perfectly on desktop and mobile
-- 🚀 **Production Ready** - Optimized for deployment on Netlify and Render
+- 👥 **Online Users** - See who's currently online in real-time
+- 🎨 **Modern UI** - Beautiful dark orange/pink gradient theme with glassmorphism effects
+- 📱 **Responsive Design** - Works perfectly on desktop, tablet, and mobile
+- �️ **Security Features** - Rate limiting, input validation, CORS protection, and helmet security headers
+- �🚀 **Production Ready** - Optimized for deployment with error handling and logging
+- ⚡ **Performance** - Compression, caching, and optimized database queries
 
 ## 🛠️ Tech Stack
 
 ### Frontend
-- **React 19.1.0** - Modern React with hooks
+- **React 19.1.0** - Modern React with hooks and concurrent features
 - **Tailwind CSS** - Utility-first CSS framework
 - **Socket.IO Client** - Real-time communication
 - **Modern ES6+** JavaScript
 
 ### Backend  
-- **Node.js & Express** - Server framework
-- **Socket.IO** - WebSocket communication
-- **MongoDB & Mongoose** - Database and ODM
-- **JWT** - Authentication
-- **bcryptjs** - Password hashing
+- **Node.js & Express** - Fast, unopinionated web framework
+- **Socket.IO** - Real-time bidirectional event-based communication
+- **MongoDB & Mongoose** - NoSQL database with object modeling
+- **JWT** - JSON Web Token authentication
+- **bcryptjs** - Password hashing and salting
+- **Helmet** - Security middleware for Express
+- **Rate Limiting** - Protection against abuse and DoS attacks
 
 ## 🚀 Quick Start
 

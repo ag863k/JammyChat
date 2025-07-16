@@ -15,46 +15,49 @@ const Chat = ({ user, onLogout }) => {
   useEffect(() => {
     if (!user?.id || !user?.username) return;
 
+    let isMounted = true;
     loadMessages();
-    
-    const backendUrl = process.env.REACT_APP_BACKEND_URL || 
-      (process.env.NODE_ENV === 'production' 
-        ? window.location.origin 
+
+    const backendUrl = process.env.REACT_APP_BACKEND_URL ||
+      (process.env.NODE_ENV === 'production'
+        ? window.location.origin
         : `${window.location.protocol}//${window.location.hostname}:4000`);
-    
+
     const newSocket = io(backendUrl, {
       transports: ['websocket', 'polling'],
       timeout: 20000,
       forceNew: true
     });
-    
+
     setSocket(newSocket);
 
     newSocket.on('connect', () => {
-      console.log('Connected to server');
-      newSocket.emit('user_connected', { 
-        username: user.username, 
-        userId: user.id 
+      newSocket.emit('user_connected', {
+        username: user.username,
+        userId: user.id
       });
     });
 
     newSocket.on('connect_error', (error) => {
-      console.error('Connection error:', error);
+      if (isMounted) {
+        alert('Unable to connect to chat server. Please try again later.');
+      }
     });
 
     newSocket.on('receive_message', (message) => {
-      if (message && message.content && message.username) {
+      if (isMounted && message && message.content && message.username) {
         setMessages(prev => [...prev, message]);
       }
     });
 
     newSocket.on('users_online', (users) => {
-      if (Array.isArray(users)) {
+      if (isMounted && Array.isArray(users)) {
         setOnlineUsers(users);
       }
     });
 
     return () => {
+      isMounted = false;
       newSocket.disconnect();
     };
   }, [user]);
