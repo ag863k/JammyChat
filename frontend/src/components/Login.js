@@ -5,31 +5,85 @@ const Login = ({ onLogin, onToggle }) => {
     email: '',
     password: ''
   });
-  const [error, setError] = useState('');
+  const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
+  const [touched, setTouched] = useState({});
+  const [showPassword, setShowPassword] = useState(false);
+
+  // Validate individual field
+  const validateField = (name, value) => {
+    const newErrors = { ...errors };
+    
+    switch (name) {
+      case 'email':
+        if (!value.trim()) {
+          newErrors.email = 'Email is required';
+        } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+          newErrors.email = 'Please enter a valid email address';
+        } else {
+          delete newErrors.email;
+        }
+        break;
+        
+      case 'password':
+        if (!value) {
+          newErrors.password = 'Password is required';
+        } else {
+          delete newErrors.password;
+        }
+        break;
+        
+      default:
+        break;
+    }
+    
+    setErrors(newErrors);
+  };
 
   const handleChange = (e) => {
+    const { name, value } = e.target;
     setFormData({
       ...formData,
-      [e.target.name]: e.target.value
+      [name]: value
     });
-    setError('');
+    
+    // Validate field on change if it's been touched
+    if (touched[name]) {
+      validateField(name, value);
+    }
+  };
+
+  const handleBlur = (e) => {
+    const { name, value } = e.target;
+    setTouched({ ...touched, [name]: true });
+    validateField(name, value);
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-    setError('');
+    setErrors({});
 
-    if (!formData.email.trim() || !formData.password) {
-      setError('Email and password are required');
-      setLoading(false);
-      return;
-    }
+    // Mark all fields as touched
+    const allTouched = {
+      email: true,
+      password: true
+    };
+    setTouched(allTouched);
 
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(formData.email)) {
-      setError('Please enter a valid email address');
+    // Validate all fields
+    const validationErrors = {};
+    Object.keys(formData).forEach(key => {
+      const tempErrors = { ...errors };
+      validateField(key, formData[key]);
+      if (tempErrors[key]) {
+        validationErrors[key] = tempErrors[key];
+      }
+    });
+
+    // Check for validation errors
+    if (Object.keys(validationErrors).length > 0) {
+      setErrors(validationErrors);
       setLoading(false);
       return;
     }
@@ -38,74 +92,166 @@ const Login = ({ onLogin, onToggle }) => {
       const apiUrl = process.env.REACT_APP_API_URL || (
         process.env.NODE_ENV === 'production' ? '/api' : 'http://localhost:4000/api'
       );
+      
       const response = await fetch(`${apiUrl}/auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          email: formData.email.trim(),
+          password: formData.password
+        }),
       });
 
       const data = await response.json();
 
-      if (response.ok) {
+      if (response.ok && data.success) {
+        // Store token in localStorage
+        if (data.token) {
+          localStorage.setItem('token', data.token);
+        }
         onLogin(data.user, data.token);
       } else {
-        setError(data.message || 'Login failed');
+        // Handle different types of errors
+        if (data.errors && Array.isArray(data.errors)) {
+          const fieldErrors = {};
+          data.errors.forEach(error => {
+            if (error.field) {
+              fieldErrors[error.field] = error.message;
+            }
+          });
+          setErrors(fieldErrors);
+        } else {
+          setErrors({ general: data.message || 'Login failed. Please check your credentials.' });
+        }
       }
     } catch (error) {
       console.error('Login error:', error);
-      setError('Network error. Please try again.');
+      setErrors({ general: 'Network error. Please check your connection and try again.' });
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="text-white">
-      <h2 className="text-3xl font-bold text-center mb-8 bg-gradient-to-r from-orange-400 to-pink-400 bg-clip-text text-transparent">
-        Welcome to JammyChat
-      </h2>
+    <div className="text-white max-w-md mx-auto">
+      <div className="text-center mb-8">
+        <h2 className="text-3xl font-bold mb-2 bg-gradient-to-r from-orange-400 to-pink-400 bg-clip-text text-transparent">
+          Welcome Back
+        </h2>
+        <p className="text-white/70">Sign in to continue chatting</p>
+      </div>
       
-      <form onSubmit={handleSubmit} className="space-y-6">
-        <div>
-          <label className="block text-sm font-medium mb-2">Email</label>
-          <input
-            type="email"
-            name="email"
-            value={formData.email}
-            onChange={handleChange}
-            required
-            className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent text-white placeholder-white/60"
-            placeholder="Enter your email"
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium mb-2">Password</label>
-          <input
-            type="password"
-            name="password"
-            value={formData.password}
-            onChange={handleChange}
-            required
-            className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent text-white placeholder-white/60"
-            placeholder="Enter your password"
-          />
-        </div>
-
-        {error && (
-          <div className="bg-red-500/20 border border-red-500/50 rounded-lg p-3 text-red-200 text-sm">
-            {error}
+      {/* General Error Message */}
+      {errors.general && (
+        <div className="mb-6 bg-red-500/20 border border-red-500/50 rounded-lg p-4 text-red-200">
+          <div className="flex items-center">
+            <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+            </svg>
+            {errors.general}
           </div>
-        )}
+        </div>
+      )}
+      
+      <form onSubmit={handleSubmit} className="space-y-5">
+        {/* Email Field */}
+        <div>
+          <label className="block text-sm font-medium mb-2 text-white/90">Email</label>
+          <div className="relative">
+            <input
+              type="email"
+              name="email"
+              value={formData.email}
+              onChange={handleChange}
+              onBlur={handleBlur}
+              className={`w-full px-4 py-3 bg-white/10 border rounded-lg focus:outline-none focus:ring-2 text-white placeholder-white/60 transition-colors ${
+                errors.email
+                  ? 'border-red-500 focus:ring-red-500'
+                  : touched.email && !errors.email && formData.email
+                  ? 'border-green-500 focus:ring-green-500'
+                  : 'border-white/20 focus:ring-orange-500'
+              }`}
+              placeholder="Enter your email"
+            />
+            {touched.email && !errors.email && formData.email && (
+              <div className="absolute right-3 top-3 text-green-500">
+                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                </svg>
+              </div>
+            )}
+          </div>
+          {errors.email && (
+            <p className="mt-1 text-sm text-red-400">{errors.email}</p>
+          )}
+        </div>
+
+        {/* Password Field */}
+        <div>
+          <label className="block text-sm font-medium mb-2 text-white/90">Password</label>
+          <div className="relative">
+            <input
+              type={showPassword ? 'text' : 'password'}
+              name="password"
+              value={formData.password}
+              onChange={handleChange}
+              onBlur={handleBlur}
+              className={`w-full px-4 py-3 pr-12 bg-white/10 border rounded-lg focus:outline-none focus:ring-2 text-white placeholder-white/60 transition-colors ${
+                errors.password
+                  ? 'border-red-500 focus:ring-red-500'
+                  : touched.password && !errors.password && formData.password
+                  ? 'border-green-500 focus:ring-green-500'
+                  : 'border-white/20 focus:ring-orange-500'
+              }`}
+              placeholder="Enter your password"
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute right-3 top-3 text-white/60 hover:text-white transition-colors"
+            >
+              {showPassword ? (
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21" />
+                </svg>
+              ) : (
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                </svg>
+              )}
+            </button>
+            {touched.password && !errors.password && formData.password && (
+              <div className="absolute right-12 top-3 text-green-500">
+                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                </svg>
+              </div>
+            )}
+          </div>
+          {errors.password && (
+            <p className="mt-1 text-sm text-red-400">{errors.password}</p>
+          )}
+        </div>
 
         <button
           type="submit"
-          disabled={loading}
-          className="w-full bg-gradient-to-r from-orange-600 to-pink-600 hover:from-orange-700 hover:to-pink-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold py-3 px-4 rounded-lg transition-all duration-200 transform hover:scale-105"
+          disabled={loading || Object.keys(errors).length > 0}
+          className="w-full bg-gradient-to-r from-orange-600 to-pink-600 hover:from-orange-700 hover:to-pink-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold py-3 px-4 rounded-lg transition-all duration-200 transform hover:scale-105 disabled:hover:scale-100 flex items-center justify-center"
         >
-          {loading ? 'Signing In...' : 'Sign In'}
+          {loading ? (
+            <>
+              <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              Signing In...
+            </>
+          ) : (
+            'Sign In'
+          )}
         </button>
       </form>
 
@@ -114,7 +260,7 @@ const Login = ({ onLogin, onToggle }) => {
           Don't have an account?{' '}
           <button
             onClick={onToggle}
-            className="text-orange-400 hover:text-orange-300 font-semibold underline"
+            className="text-orange-400 hover:text-orange-300 font-semibold transition-colors"
           >
             Sign Up
           </button>
